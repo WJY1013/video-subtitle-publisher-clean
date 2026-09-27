@@ -341,8 +341,8 @@ if FRONTEND.exists():
     app.mount("/ui", StaticFiles(directory=FRONTEND, html=True), name="ui")
 
 
-@app.get("/app")
-async def app_page() -> FileResponse | JSONResponse:
+@app.get("/app", response_model=None)
+async def app_page():
     page = FRONTEND / "index.html"
     if page.exists():
         return FileResponse(page)
