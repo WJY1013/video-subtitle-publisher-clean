@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GULF 字幕文字 V2</title>
+<style>
+:root{--bg:#0b1020;--panel:#121a2e;--panel2:#18223b;--text:#eef3ff;--muted:#aab5cc;--line:#2a3757;--accent:#77a9ff;--good:#55d99a;--warn:#ffca62;--bad:#ff7373}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#162443 0,#0b1020 46%,#070b15 100%);color:var(--text);font-family:Inter,"Microsoft YaHei",Arial,sans-serif;min-height:100vh}
+.wrap{max-width:1320px;margin:0 auto;padding:32px 22px 70px}.top{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:24px}.brand{font-size:30px;font-weight:800;letter-spacing:.3px}.sub{color:var(--muted);margin-top:6px}.badge{border:1px solid #34558c;background:#13213c;padding:8px 12px;border-radius:999px;color:#bcd3ff;font-size:13px}
+.card{background:rgba(18,26,46,.94);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 18px 60px rgba(0,0,0,.2);margin-bottom:18px}.drop{border:1.5px dashed #476aa5;border-radius:16px;padding:42px 18px;text-align:center;background:#101a31;cursor:pointer}.drop.drag{border-color:var(--accent);background:#132341}.drop strong{display:block;font-size:19px;margin-bottom:8px}.drop span{color:var(--muted);font-size:14px}.hidden{display:none}
+.grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(360px,.9fr);gap:18px}.preview{width:100%;background:#000;border-radius:14px;max-height:62vh}.progress{height:9px;background:#202c45;border-radius:999px;overflow:hidden;margin:12px 0}.bar{height:100%;width:0;background:linear-gradient(90deg,#75a8ff,#74e0be);transition:width .35s}.status{display:flex;justify-content:space-between;gap:14px;color:var(--muted);font-size:14px}.title{font-weight:800;font-size:18px;margin-bottom:14px}.row{display:grid;grid-template-columns:95px 1fr 1fr 70px;gap:8px;align-items:start;padding:10px 0;border-bottom:1px solid #24304c}.row:last-child{border-bottom:0}.time{font-size:12px;color:#9bb0d7;padding-top:11px}.seg textarea,.seg input{width:100%;background:#0d1528;color:var(--text);border:1px solid #2e3d5f;border-radius:9px;padding:9px;font:inherit}.seg textarea{min-height:60px;resize:vertical}.conf{font-size:12px;text-align:center;padding-top:12px}.high{color:var(--good)}.mid{color:var(--warn)}.low{color:var(--bad)}.hook{background:#0d1528;border:1px solid #2e3d5f;border-radius:12px;padding:12px;margin-bottom:16px}.hook label{display:block;color:#91a4c8;font-size:12px;margin-bottom:7px}.hook textarea{width:100%;min-height:66px;background:transparent;border:0;outline:none;color:var(--text);font:inherit;resize:vertical}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.btn{border:0;border-radius:11px;padding:11px 16px;font-weight:750;cursor:pointer}.btn:disabled{opacity:.45;cursor:not-allowed}.primary{background:#5f96ff;color:white}.secondary{background:#243454;color:#dbe6ff}.good{background:#2e9b72;color:#fff}.danger{background:#853f4a;color:#fff}.notice{padding:11px 13px;border-radius:11px;background:#15213a;border:1px solid #2a3c60;color:#b8c7e5;font-size:13px;line-height:1.5}.error{background:#351d26;border-color:#6d3441;color:#ffc0c0}.jobs{display:grid;gap:10px}.job{padding:12px 14px;border:1px solid #263453;border-radius:12px;background:#10192d;display:flex;justify-content:space-between;gap:12px;align-items:center}.jobname{font-weight:650}.mini{font-size:12px;color:var(--muted)}a{color:#9fc2ff}.empty{color:var(--muted);padding:12px 0}@media(max-width:900px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}.row{grid-template-columns:75px 1fr}.conf{grid-column:2}.preview{max-height:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><div class="brand">GULF 字幕文字 V2</div><div class="sub">上传视频 → 高精度英语字幕 → 中文对齐 → 前 3 秒说明 → 你审核 → 通过保存 / 不好删除</div></div>
+    <div class="badge">本地优先 · 审核优先 · 不自动发布</div>
+  </div>
+
+  <div id="uploadCard" class="card">
+    <div class="title">① 上传视频</div>
+    <label id="drop" class="drop">
+      <input id="file" class="hidden" type="file" accept="video/mp4,video/quicktime,video/x-matroska,video/webm,video/x-m4v,video/x-msvideo">
+      <strong>点击选择视频，或把视频拖到这里</strong>
+      <span id="fileName">支持 MP4 / MOV / MKV / WEBM / M4V / AVI</span>
+    </label>
+    <div class="actions">
+      <button id="startBtn" class="btn primary" disabled>开始生成审核版</button>
+    </div>
+    <div id="uploadMsg" class="notice" style="margin-top:14px">首次运行需要下载本地模型；之后模型会留在本机，不需要云端识别。</div>
+  </div>
+
+  <div id="workCard" class="card hidden">
+    <div class="title">② 正在处理</div>
+    <div class="status"><span id="stage">准备</span><strong id="pct">0%</strong></div>
+    <div class="progress"><div id="bar" class="bar"></div></div>
+    <div id="message" class="notice">等待处理…</div>
+  </div>
+
+  <div id="reviewCard" class="card hidden">
+    <div class="title">③ 成片审片</div>
+    <div class="grid">
+      <div>
+        <video id="reviewVideo" class="preview" controls playsinline></video>
+        <div id="reviewNotice" class="notice" style="margin-top:12px">先看视频，再检查右侧字幕。低置信度行会用提示色标出。</div>
+      </div>
+      <div>
+        <div class="hook">
+          <label>前 3 秒内容说明（可以直接改）</label>
+          <textarea id="hook"></textarea>
+        </div>
+        <div id="segments"></div>
+        <div class="actions">
+          <button id="refreshPreview" class="btn secondary">保存修改并刷新审核预览</button>
+          <button id="approveBtn" class="btn good">审核通过，生成最终版</button>
+          <button id="rejectBtn" class="btn danger">不好，删除这个视频</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="finalCard" class="card hidden">
+    <div class="title">④ 已完成</div>
+    <div class="notice">最终版已经生成。这里先只保存到本机，不自动发布到任何平台。</div>
+    <div id="finalLinks" class="actions"></div>
+  </div>
+
+  <div class="card">
+    <div class="title">历史任务</div>
+    <div id="jobs" class="jobs"><div class="empty">还没有任务。</div></div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let selectedFile=null,currentJob=null,pollTimer=null;
+
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function fmtTime(sec){sec=Number(sec)||0;const m=Math.floor(sec/60),s=sec-m*60;return m+':'+s.toFixed(2).padStart(5,'0')}
+function msg(text, bad=false){$('uploadMsg').textContent=text;$('uploadMsg').className='notice'+(bad?' error':'')}
+
+$('drop').addEventListener('click',()=> $('file').click());
+['dragenter','dragover'].forEach(e=>$('drop').addEventListener(e,ev=>{ev.preventDefault();$('drop').classList.add('drag')}));
+['dragleave','drop'].forEach(e=>$('drop').addEventListener(e,ev=>{ev.preventDefault();$('drop').classList.remove('drag')}));
+$('drop').addEventListener('drop',ev=>{const f=ev.dataTransfer.files?.[0];if(f) setFile(f)});
+$('file').addEventListener('change',ev=>{const f=ev.target.files?.[0];if(f)setFile(f)});
+function setFile(f){
+  if(!f.type.startsWith('video/')) return msg('请选择视频文件。',true);
+  selectedFile=f;$('fileName').textContent=f.name+' · '+(f.size/1024/1024).toFixed(1)+' MB';$('startBtn').disabled=false;
+}
+$('startBtn').onclick=async()=>{
+  if(!selectedFile)return;
+  $('workCard').classList.remove('hidden');$('reviewCard').classList.add('hidden');$('finalCard').classList.add('hidden');
+  $('startBtn').disabled=true;
+  const fd=new FormData();fd.append('file',selectedFile);
+  try{
+    const r=await fetch('/api/v1/jobs',{method:'POST',body:fd});
+    const data=await r.json();if(!r.ok)throw new Error(data.detail||data.error||'上传失败');
+    currentJob=data.id;poll();
+  }catch(e){msg('启动失败：'+e.message,true);$('startBtn').disabled=false}
+};
+async function poll(){
+  clearTimeout(pollTimer);if(!currentJob)return;
+  try{
+    const r=await fetch('/api/v1/jobs/'+encodeURIComponent(currentJob));const d=await r.json();renderStatus(d);
+    if(['review','failed','approved'].includes(d.status)){if(d.status==='review')showReview(d);return}
+    pollTimer=setTimeout(poll,900);
+  }catch(e){$('message').textContent='状态读取失败：'+e.message;pollTimer=setTimeout(poll,1500)}
+}
+function renderStatus(d){
+  $('stage').textContent=d.stage||'处理中';$('pct').textContent=(d.progress||0)+'%';$('bar').style.width=(d.progress||0)+'%';$('message').textContent=d.message||'';
+  if(d.status==='failed'){$('message').className='notice error';$('message').textContent='处理失败：'+(d.error||d.message||'未知错误')}
+}
+function showReview(d){
+  $('workCard').classList.add('hidden');$('reviewCard').classList.remove('hidden');$('reviewVideo').src=(d.files?.review||'')+'?t='+Date.now();$('hook').value=d.hook_text||'';renderSegments(d.segments||[]);
+}
+function renderSegments(items){
+  $('segments').innerHTML=items.map((s,i)=>{
+    const c=Number(s.confidence||0);const cls=c>=82?'high':c>=60?'mid':'low';
+    return '<div class="row seg">'+
+      '<div class="time">'+fmtTime(s.start)+'<br>→ '+fmtTime(s.end)+'</div>'+
+      '<textarea data-i="'+i+'" data-k="en">'+esc(s.en)+'</textarea>'+
+      '<textarea data-i="'+i+'" data-k="zh">'+esc(s.zh)+'</textarea>'+
+      '<div class="conf '+cls+'">'+c.toFixed(0)+'%<br><span class="mini">'+(c<60?'请重点检查':c<82?'建议检查':'稳定')+'</span></div>'+
+      '</div>'
+  }).join('');
+  $('segments')._items=items.map(x=>({...x}));
+}
+function collectSegments(){
+  const items=($('segments')._items||[]).map(x=>({...x}));
+  document.querySelectorAll('#segments textarea').forEach(el=>{const i=Number(el.dataset.i);items[i][el.dataset.k]=el.value});
+  return items;
+}
+async function savePreview(){
+  const body={segments:collectSegments(),hook_text:$('hook').value};
+  $('refreshPreview').disabled=true;$('approveBtn').disabled=true;
+  try{
+    const r=await fetch('/api/v1/jobs/'+currentJob+'/review',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();if(!r.ok)throw new Error(d.detail||'更新失败');
+    $('reviewNotice').textContent='正在重新生成审核预览…';await waitForReview();
+  }catch(e){$('reviewNotice').className='notice error';$('reviewNotice').textContent=e.message}
+  finally{$('refreshPreview').disabled=false;$('approveBtn').disabled=false}
+}
+async function waitForReview(){
+  for(let n=0;n<240;n++){
+    await new Promise(r=>setTimeout(r,800));const r=await fetch('/api/v1/jobs/'+currentJob);const d=await r.json();renderStatus(d);
+    if(d.status==='review'){showReview(d);$('reviewNotice').className='notice';$('reviewNotice').textContent='审核预览已更新。';return}
+    if(d.status==='failed')throw new Error(d.error||'预览生成失败');
+  }
+  throw new Error('预览生成时间过长，请查看黑色窗口日志。');
+}
+$('refreshPreview').onclick=savePreview;
+$('approveBtn').onclick=async()=>{
+  if(!confirm('确定字幕和前三秒说明都审核通过了吗？通过后会开始生成最终版。'))return;
+  const body={segments:collectSegments(),hook_text:$('hook').value};$('approveBtn').disabled=true;$('refreshPreview').disabled=true;
+  try{
+    const r=await fetch('/api/v1/jobs/'+currentJob+'/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();if(!r.ok)throw new Error(d.detail||'无法开始生成最终版');
+    $('reviewNotice').textContent='正在生成最终版，请不要关闭程序。';await waitForFinal();
+  }catch(e){$('reviewNotice').className='notice error';$('reviewNotice').textContent=e.message;$('approveBtn').disabled=false;$('refreshPreview').disabled=false}
+};
+async function waitForFinal(){
+  for(let n=0;n<600;n++){
+    await new Promise(r=>setTimeout(r,1000));const r=await fetch('/api/v1/jobs/'+currentJob);const d=await r.json();renderStatus(d);
+    if(d.status==='approved'){showFinal(d);return}
+    if(d.status==='failed')throw new Error(d.error||'最终版生成失败');
+  }
+  throw new Error('最终版生成时间过长，请查看黑色窗口日志。');
+}
+function showFinal(d){
+  $('reviewCard').classList.add('hidden');$('workCard').classList.add('hidden');$('finalCard').classList.remove('hidden');
+  $('finalLinks').innerHTML='<a class="btn good" href="'+d.files.final+'" download>保存最终 MP4</a>'+
+    '<a class="btn secondary" href="'+d.files.srt+'" download>保存 SRT</a>'+
+    '<a class="btn secondary" href="'+d.files.ass+'" download>保存 ASS</a>'+
+    '<button class="btn primary" onclick="newVideo()">继续做下一个视频</button>';
+  loadJobs();
+}
+$('rejectBtn').onclick=async()=>{
+  if(!confirm('确定删除这次任务吗？源视频和生成文件都会删除。'))return;
+  const r=await fetch('/api/v1/jobs/'+currentJob+'/reject',{method:'POST'});if(r.ok)newVideo();
+};
+function newVideo(){selectedFile=null;currentJob=null;$('file').value='';$('fileName').textContent='支持 MP4 / MOV / MKV / WEBM / M4V / AVI';$('startBtn').disabled=true;$('workCard').classList.add('hidden');$('reviewCard').classList.add('hidden');$('finalCard').classList.add('hidden');msg('准备好了，上传下一个视频。');loadJobs()}
+async function loadJobs(){
+  try{const r=await fetch('/api/v1/jobs');const d=await r.json();$('jobs').innerHTML=d.jobs.length?d.jobs.map(j=>'<div class="job"><div><div class="jobname">'+esc(j.filename)+'</div><div class="mini">'+esc(j.status)+' · '+esc(j.stage||'')+'</div></div><div class="mini">'+esc(j.id)+'</div></div>').join(''):'<div class="empty">还没有任务。</div>'}catch{}
+}
+loadJobs();
+</script>
+</body>
+</html>
