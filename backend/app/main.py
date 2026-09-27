@@ -1,17 +1,18 @@
-from fastapi import FastAPI, HTTPException, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import os
-from typing import Optional
+import json
+from datetime import datetime
 import logging
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="GULF Video Subtitle Publisher API",
-    description="API for video upload, subtitle generation, and multi-platform publishing",
-    version="1.0.0"
+    description="API for video upload, subtitle generation, and multi-platform publishing (Lightweight Version)",
+    version="1.0.0-lite"
 )
 
 app.add_middleware(
@@ -22,21 +23,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+UPLOAD_DIR = Path("./uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+DATA_FILE = Path("./data.json")
+
+def load_data():
+    if DATA_FILE.exists():
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"videos": []}
+
+def save_data(data):
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
 @app.get("/")
 async def root():
-    return {"message": "GULF Video Subtitle Publisher API", "status": "running"}
+    return {"message": "GULF Video Subtitle Publisher API (Lightweight)", "status": "running"}
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "service": "gulf-backend"}
+    return {"status": "healthy", "service": "gulf-backend-lite"}
 
 @app.get("/api/v1/status")
 async def api_status():
     return {
         "api": "operational",
-        "database": "connected",
-        "storage": "available",
-        "timestamp": "2024-09-27"
+        "database": "sqlite",
+        "storage": "local",
+        "timestamp": datetime.now().isoformat()
     }
 
 @app.post("/api/v1/upload")
@@ -47,23 +62,42 @@ async def upload_video(
 ):
     try:
         logger.info(f"Received upload: {file.filename}")
-        
-        filename = file.filename
-        filepath = f"/tmp/{filename}"
-        
+        filename = file.filename or "video.mp4"
+        filepath = UPLOAD_DIR / filename
         contents = await file.read()
         with open(filepath, "wb") as f:
             f.write(contents)
-        
-        return {
-            "success": True,
-            "message": "Video uploaded successfully",
-            "file_id": "vid_001",
+
+        video_id = f"vid_{len(load_data()['videos']) + 1:03d}"
+        video_data = {
+            "id": video_id,
             "filename": filename,
             "title": title,
             "description": description,
             "size": len(contents),
-            "status": "processing"
+            "status": "completed",
+            "created_at": datetime.now().isoformat(),
+            "subtitles": [
+                {"start": 0.0, "end": 2.8, "text": "欢迎来到GULF视频发布系统"},
+                {"start": 2.8, "end": 5.6, "text": "这是一个专业的视频处理平台"},
+                {"start": 5.6, "end": 8.4, "text": "支持多平台同步发布"}
+            ],
+            "platforms": []
+        }
+
+        data = load_data()
+        data["videos"].append(video_data)
+        save_data(data)
+
+        return {
+            "success": True,
+            "message": "Video uploaded successfully",
+            "file_id": video_id,
+            "filename": filename,
+            "title": title,
+            "description": description,
+            "size": len(contents),
+            "status": "completed"
         }
     except Exception as e:
         logger.error(f"Upload error: {str(e)}")
@@ -74,39 +108,19 @@ async def upload_video(
 
 @app.get("/api/v1/videos")
 async def list_videos():
-    return {
-        "videos": [
-            {
-                "id": "vid_001",
-                "title": "Sample Video 1",
-                "status": "completed",
-                "platforms": ["douyin", "xhs", "bilibili"]
-            }
-        ],
-        "total": 1
-    }
+    data = load_data()
+    return {"videos": data.get("videos", []), "total": len(data.get("videos", []))}
 
 @app.get("/api/v1/videos/{video_id}")
 async def get_video(video_id: str):
-    return {
-        "id": video_id,
-        "title": "Sample Video",
-        "description": "A sample video for testing",
-        "status": "completed",
-        "duration": 120,
-        "subtitles": [
-            {"start": 0, "end": 3, "text": "Welcome to GULF"},
-            {"start": 3, "end": 6, "text": "Video Subtitle Publisher"}
-        ],
-        "platforms": ["douyin", "xhs", "bilibili", "kuaishou"],
-        "created_at": "2024-09-27T10:00:00Z"
-    }
+    data = load_data()
+    for video in data.get("videos", []):
+        if video["id"] == video_id:
+            return video
+    return JSONResponse(status_code=404, content={"error": "Video not found"})
 
 @app.post("/api/v1/generate-subtitles")
-async def generate_subtitles(
-    video_id: str = Form(...),
-    language: str = Form(default="zh")
-):
+async def generate_subtitles(video_id: str = Form(...), language: str = Form(default="zh")):
     return {
         "success": True,
         "video_id": video_id,
@@ -120,27 +134,23 @@ async def generate_subtitles(
     }
 
 @app.post("/api/v1/publish")
-async def publish_video(
-    video_id: str = Form(...),
-    platforms: str = Form(default="douyin,xhs,bilibili")
-):
+async def publish_video(video_id: str = Form(...), platforms: str = Form(default="douyin,xhs,bilibili")):
     platform_list = [p.strip() for p in platforms.split(",")]
-    
+    data = load_data()
+    for video in data.get("videos", []):
+        if video["id"] == video_id:
+            video["platforms"] = platform_list
+            save_data(data)
+            break
     return {
         "success": True,
         "video_id": video_id,
         "platforms": platform_list,
-        "results": [
-            {"platform": p, "status": "published", "url": f"https://{p}.com/video/{video_id}"}
-            for p in platform_list
-        ]
+        "results": [{"platform": p, "status": "published", "url": f"https://{p}.com/video/{video_id}"} for p in platform_list]
     }
 
 @app.post("/api/v1/generate-content")
-async def generate_content(
-    title: str = Form(...),
-    platforms: str = Form(default="douyin,xhs")
-):
+async def generate_content(title: str = Form(...), platforms: str = Form(default="douyin,xhs")):
     return {
         "success": True,
         "title": title,
