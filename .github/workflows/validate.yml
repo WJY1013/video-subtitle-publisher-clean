@@ -1,0 +1,34 @@
+name: GULF Subtitle V2 validation
+
+on:
+  push:
+    branches: ["main", "gulf-subtitle-v2-review-first"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile backend
+        run: python -m compileall -q backend/app
+
+      - name: Validate required files
+        run: |
+          test -f backend/app/main.py
+          test -f backend/app/processing_service.py
+          test -f frontend/index.html
+          test -f run_gulf_subtitle.bat
+          ! grep -q "这是第一句字幕" backend/app/main.py
+          ! grep -q "https://douyin.com/video/" backend/app/main.py
+
+      - name: Import FastAPI app
+        run: |
+          pip install -q "fastapi>=0.115,<1" "pydantic>=2.7,<3" "python-multipart>=0.0.20,<1" "imageio-ffmpeg>=0.6,<1"
+          python -c "from backend.app.main import app; print(app.version); print('IMPORT_PASS')"
